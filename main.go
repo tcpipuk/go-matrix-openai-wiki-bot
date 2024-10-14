@@ -9,7 +9,7 @@ import (
     "sync"
 
     gowiki "github.com/trietmn/go-wiki"
-    openai "github.com/openai/openai-go"
+    openai "github.com/sashabaranov/go-openai"
     "gopkg.in/yaml.v2"
     "maunium.net/go/mautrix"
     "maunium.net/go/mautrix/event"
@@ -58,9 +58,7 @@ func main() {
     }
 
     // Initialize OpenAI client
-    openaiClient = openai.NewClient(openai.ClientOptions{
-        APIKey: config.OpenAI.APIKey,
-    })
+    openaiClient = openai.NewClient(config.OpenAI.APIKey)
 
     // Initialize Matrix client
     matrixClient, err = mautrix.NewClient(config.Matrix.Homeserver, id.UserID(config.Matrix.UserID), config.Matrix.AccessToken)
@@ -70,7 +68,7 @@ func main() {
 
     // Sync the Matrix client
     syncer := matrixClient.Syncer.(*mautrix.DefaultSyncer)
-    syncer.OnEventType(event.EventMessage, event.HandlerFunc(handleMessageEvent))
+    syncer.OnEventType(event.EventMessage, handleMessageEvent)
 
     // Start syncing
     err = matrixClient.Sync()
@@ -174,10 +172,9 @@ func summarizeContent(content string) (string, error) {
     ctx := context.Background()
 
     req := openai.CompletionRequest{
-        Model: config.OpenAI.Model,
-        Prompt: []string{
-            config.OpenAI.SystemPrompt + "\n\n" + content,
-        },
+        Model:     config.OpenAI.Model,
+        MaxTokens: 100,
+        Prompt:    content,
     }
 
     resp, err := openaiClient.CreateCompletion(ctx, req)
