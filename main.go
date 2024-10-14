@@ -9,7 +9,8 @@ import (
     "sync"
 
     gowiki "github.com/trietmn/go-wiki"
-    openai "github.com/sashabaranov/go-openai"
+    openai "github.com/openai/openai-go"
+    "github.com/openai/openai-go/option"
     "gopkg.in/yaml.v2"
     "maunium.net/go/mautrix"
     "maunium.net/go/mautrix/event"
@@ -58,7 +59,9 @@ func main() {
     }
 
     // Initialize OpenAI client
-    openaiClient = openai.NewClient(config.OpenAI.APIKey)
+    openaiClient = openai.NewClient(
+        option.WithAPIKey(config.OpenAI.APIKey),
+    )
 
     // Initialize Matrix client
     matrixClient, err = mautrix.NewClient(config.Matrix.Homeserver, id.UserID(config.Matrix.UserID), config.Matrix.AccessToken)
@@ -171,19 +174,21 @@ func searchWikipedia(searchTerm string) (string, error) {
 func summarizeContent(content string) (string, error) {
     ctx := context.Background()
 
-    req := openai.CompletionRequest{
-        Model:     config.OpenAI.Model,
-        MaxTokens: 100,
-        Prompt:    content,
+    req := openai.ChatCompletionNewParams{
+        Messages: []openai.ChatCompletionMessageParamUnion{
+            openai.SystemMessage(config.OpenAI.SystemPrompt),
+            openai.UserMessage(content),
+        },
+        Model: openai.F(openai.ChatModelGPT4),
     }
 
-    resp, err := openaiClient.CreateCompletion(ctx, req)
+    resp, err := openaiClient.Chat.Completions.New(ctx, req)
     if err != nil {
         return "", err
     }
 
     if len(resp.Choices) > 0 {
-        return resp.Choices[0].Text, nil
+        return resp.Choices[0].Message.Content, nil
     }
 
     return "", fmt.Errorf("no response from OpenAI")
