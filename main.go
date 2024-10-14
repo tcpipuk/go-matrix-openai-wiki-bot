@@ -3,10 +3,8 @@ package main
 import (
     "context"
     "fmt"
-    "io/ioutil"
     "log"
     "os"
-    "path/filepath"
     "strings"
     "sync"
 
@@ -17,6 +15,26 @@ import (
     "maunium.net/go/mautrix/event"
     "maunium.net/go/mautrix/id"
 )
+
+type Config struct {
+    Matrix struct {
+        Homeserver  string `yaml:"homeserver"`
+        UserID      string `yaml:"user_id"`
+        AccessToken string `yaml:"access_token"`
+    } `yaml:"matrix"`
+    OpenAI struct {
+        APIKey       string `yaml:"api_key"`
+        Model        string `yaml:"model"`
+        SystemPrompt string `yaml:"system_prompt"`
+    } `yaml:"openai"`
+    Wikipedia struct {
+        Prefix string `yaml:"prefix"`
+    } `yaml:"wikipedia"`
+    Bot struct {
+        OutputDir string `yaml:"output_dir"`
+        Command   string `yaml:"command"`
+    } `yaml:"bot"`
+}
 
 var (
     config       Config
@@ -50,49 +68,118 @@ func main() {
 
     // Sync the Matrix client
     syncer := matrixClient.Syncer.(*mautrix.DefaultSyncer)
-    syncer.OnEventType(event.EventMessage, func(ev *event.Event) {
-        // Ignore messages from the bot itself
-        if ev.Sender == id.UserID(config.Matrix.UserID) {
-            return
-        }
+    syncer.OnEventType(event.EventMessage, mautrix.EventHandlerFunc(handleMessageEvent))
 
-        // Handle the configured command
-        if msgEvent, ok := ev.Content.AsMessage(); ok {
-            if strings.HasPrefix(msgEvent.Body, config.Bot.Command+" ") {
-                searchTerm := strings.TrimSpace(strings.TrimPrefix(msgEvent.Body, config.Bot.Command+" "))
-                wg.Add(1)
-                go func() {
-                    defer wg.Done()
-                    handleWikiCommand(ev.RoomID, searchTerm)
-                }()
-            }
-        }
-    })
-
-    // Start syncing in a separate Goroutine
-    go func() {
-        err = matrixClient.Sync()
-        if err != nil {
-            log.Fatalf("Matrix sync failed: %v", err)
-        }
-    }()
+    // Start syncing
+    err = matrixClient.Sync()
+    if err != nil {
+        log.Fatalf("Matrix sync failed: %v", err)
+    }
 
     // Wait indefinitely
     select {}
 }
 
+func loadConfig(filename string) error {
+    data, err := os.ReadFile(filename)
+    if err != nil {
+        return err
+    }
+    err = yaml.Unmarshal(data, &config)
+    if err != nil {
+        return err
+    }
+    return nil
+}
+
+func handleMessageEvent(ev *event.Event) {
+    if ev.Sender == id.UserID(config.Matrix.UserID) {
+        return
+    }
+
+    msgEvent, ok := ev.Content.AsMessage()
+    if !ok {
+        return
+    }
+
+    if strings.HasPrefix(msgEvent.Body, config.Bot.Command+" ") {
+        searchTerm := strings.TrimSpace(strings.TrimPrefix(msgEvent.Body, config.Bot.Command+" "))
+        wg.Add(1)
+        go func() {
+            defer wg.Done()
+            handleWikiCommand(ev.RoomID, searchTerm)
+        }()
+    }
+}
+
+func handleWikiCommand(roomID id.RoomID, searchTerm string) {
+    articleTitle, err := searchWikipedia(searchTerm)
+    if err != nil {
+        sendMessage(roomID, fmt.Sprintf("Error finding article: %v", err))
+        return
+    }
+
+    summaryFile := fmt.Sprintf("%s/%s.txt", outputDir, sanitizeFileName(articleTitle))
+    if _, err := os.Stat(summaryFile); err == nil {
+        summary, err := os.ReadFile(summaryFile)
+        if err != nil {
+            sendMessage(roomID, fmt.Sprintf("Error reading summary: %v", err))
+            return
+        }
+        sendMessage(roomID, string(summary))
+        return
+    }
+
+    page, err := gowiki.GetPage(articleTitle, -1, false, true)
+    if err != nil {
+        sendMessage(roomID, fmt.Sprintf("Error fetching article: %v", err))
+        return
+    }
+
+    content, err := page.GetContent()
+    if err != nil {
+        sendMessage(roomID, fmt.Sprintf("Error getting content: %v", err))
+        return
+    }
+
+    summary, err := summarizeContent(content)
+    if err != nil {
+        sendMessage(roomID, fmt.Sprintf("Error summarizing article: %v", err))
+        return
+    }
+
+    err = os.WriteFile(summaryFile, []byte(summary), 0644)
+    if err != nil {
+        sendMessage(roomID, fmt.Sprintf("Error saving summary: %v", err))
+        return
+    }
+
+    sendMessage(roomID, summary)
+}
+
+func searchWikipedia(searchTerm string) (string, error) {
+    searchResults, _, err := gowiki.Search(searchTerm, 1, false)
+    if err != nil {
+        return "", err
+    }
+    if len(searchResults) == 0 {
+        return "", fmt.Errorf("No results found for '%s'", searchTerm)
+    }
+    return searchResults[0], nil
+}
+
 func summarizeContent(content string) (string, error) {
     ctx := context.Background()
-    
+
     req := openai.ChatCompletionRequest{
-        Model:       "gpt-4",
+        Model: config.OpenAI.Model,
         Messages: []openai.ChatCompletionMessage{
             {Role: openai.ChatMessageRoleSystem, Content: config.OpenAI.SystemPrompt},
             {Role: openai.ChatMessageRoleUser, Content: content},
         },
     }
 
-    resp, err := openaiClient.ChatCompletions.Create(ctx, req)
+    resp, err := openaiClient.CreateChatCompletion(ctx, req)
     if err != nil {
         return "", err
     }
@@ -102,4 +189,19 @@ func summarizeContent(content string) (string, error) {
     }
 
     return "", fmt.Errorf("no response from OpenAI")
+}
+
+func sendMessage(roomID id.RoomID, message string) {
+    _, err := matrixClient.SendText(roomID, message)
+    if err != nil {
+        log.Printf("Failed to send message to %s: %v", roomID, err)
+    }
+}
+
+func sanitizeFileName(name string) string {
+    invalidChars := []string{"/", "\\", ":", "*", "?", "\"", "<", ">", "|"}
+    for _, char := range invalidChars {
+        name = strings.ReplaceAll(name, char, "_")
+    }
+    return name
 }
