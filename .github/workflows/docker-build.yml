@@ -3,11 +3,12 @@ name: Build and Push Docker Image
 on:
   push:
     branches:
-      - "*"
+      - main
 
 permissions:
   contents: read
   packages: write
+  pull-requests: write
 
 jobs:
   build-and-push:
@@ -15,6 +16,20 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: 1.20
+
+      - name: Run go mod tidy
+        run: go mod tidy
+
+      - name: Verify module integrity
+        run: go mod verify
+
+      - name: Build the application
+        run: go build -o go-matrix-openai-wiki-bot .
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
