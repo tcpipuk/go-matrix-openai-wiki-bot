@@ -95,7 +95,7 @@ func loadConfig(filename string) error {
     return nil
 }
 
-func handleMessageEvent(ev *event.Event) {
+func handleMessageEvent(ctx context.Context, ev *event.Event) {
     if ev.Sender == id.UserID(config.Matrix.UserID) {
         return
     }
@@ -110,15 +110,15 @@ func handleMessageEvent(ev *event.Event) {
         wg.Add(1)
         go func() {
             defer wg.Done()
-            handleWikiCommand(ev.RoomID, searchTerm)
+            handleWikiCommand(ctx, ev.RoomID, searchTerm)
         }()
     }
 }
 
-func handleWikiCommand(roomID id.RoomID, searchTerm string) {
+func handleWikiCommand(ctx context.Context, roomID id.RoomID, searchTerm string) {
     articleTitle, err := searchWikipedia(searchTerm)
     if err != nil {
-        sendMessage(roomID, fmt.Sprintf("Error finding article: %v", err))
+        sendMessage(ctx, roomID, fmt.Sprintf("Error finding article: %v", err))
         return
     }
 
@@ -126,38 +126,38 @@ func handleWikiCommand(roomID id.RoomID, searchTerm string) {
     if _, err := os.Stat(summaryFile); err == nil {
         summary, err := os.ReadFile(summaryFile)
         if err != nil {
-            sendMessage(roomID, fmt.Sprintf("Error reading summary: %v", err))
+            sendMessage(ctx, roomID, fmt.Sprintf("Error reading summary: %v", err))
             return
         }
-        sendMessage(roomID, string(summary))
+        sendMessage(ctx, roomID, string(summary))
         return
     }
 
     page, err := gowiki.GetPage(articleTitle, -1, false, true)
     if err != nil {
-        sendMessage(roomID, fmt.Sprintf("Error fetching article: %v", err))
+        sendMessage(ctx, roomID, fmt.Sprintf("Error fetching article: %v", err))
         return
     }
 
     content, err := page.GetContent()
     if err != nil {
-        sendMessage(roomID, fmt.Sprintf("Error getting content: %v", err))
+        sendMessage(ctx, roomID, fmt.Sprintf("Error getting content: %v", err))
         return
     }
 
-    summary, err := summarizeContent(content)
+    summary, err := summarizeContent(ctx, content)
     if err != nil {
-        sendMessage(roomID, fmt.Sprintf("Error summarizing article: %v", err))
+        sendMessage(ctx, roomID, fmt.Sprintf("Error summarizing article: %v", err))
         return
     }
 
     err = os.WriteFile(summaryFile, []byte(summary), 0644)
     if err != nil {
-        sendMessage(roomID, fmt.Sprintf("Error saving summary: %v", err))
+        sendMessage(ctx, roomID, fmt.Sprintf("Error saving summary: %v", err))
         return
     }
 
-    sendMessage(roomID, summary)
+    sendMessage(ctx, roomID, summary)
 }
 
 func searchWikipedia(searchTerm string) (string, error) {
@@ -171,18 +171,16 @@ func searchWikipedia(searchTerm string) (string, error) {
     return searchResults[0], nil
 }
 
-func summarizeContent(content string) (string, error) {
-    ctx := context.Background()
-
-    req := openai.ChatCompletionNewParams{
-        Messages: []openai.ChatCompletionMessageParamUnion{
-            openai.SystemMessage(config.OpenAI.SystemPrompt),
-            openai.UserMessage(content),
+func summarizeContent(ctx context.Context, content string) (string, error) {
+    req := openai.ChatCompletionRequest{
+        Model:  config.OpenAI.Model,
+        Messages: []openai.ChatCompletionMessage{
+            {Role: openai.ChatMessageRoleSystem, Content: config.OpenAI.SystemPrompt},
+            {Role: openai.ChatMessageRoleUser, Content: content},
         },
-        Model: openai.F(openai.ChatModelGPT4),
     }
 
-    resp, err := openaiClient.Chat.Completions.New(ctx, req)
+    resp, err := openaiClient.CreateChatCompletion(ctx, req)
     if err != nil {
         return "", err
     }
@@ -194,8 +192,8 @@ func summarizeContent(content string) (string, error) {
     return "", fmt.Errorf("no response from OpenAI")
 }
 
-func sendMessage(roomID id.RoomID, message string) {
-    _, err := matrixClient.SendText(context.Background(), roomID, message)
+func sendMessage(ctx context.Context, roomID id.RoomID, message string) {
+    _, err := matrixClient.SendText(ctx, roomID, message)
     if err != nil {
         log.Printf("Failed to send message to %s: %v", roomID, err)
     }
