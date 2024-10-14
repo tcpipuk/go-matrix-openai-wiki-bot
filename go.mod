@@ -1,4 +1,4 @@
-module github.com/your_username/go-matrix-openai-wiki-bot
+module github.com/tcpipuk/go-matrix-openai-wiki-bot
 
 go 1.22.0
 
