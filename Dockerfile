@@ -1,12 +1,13 @@
 # Use the official Go image as the base image
-FROM golang:1.20-alpine
+FROM golang:alpine
 
 # Set the working directory inside the container
 WORKDIR /app
 
 # Copy the Go module files and download dependencies
 COPY go.mod go.sum ./
-RUN go mod download
+RUN go mod tidy \
+  && go mod download
 
 # Copy the source code
 COPY . .
