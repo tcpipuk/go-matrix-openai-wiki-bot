@@ -172,15 +172,15 @@ func searchWikipedia(searchTerm string) (string, error) {
 }
 
 func summarizeContent(ctx context.Context, content string) (string, error) {
-    req := openai.ChatCompletionRequest{
-        Model:  config.OpenAI.Model,
-        Messages: []openai.ChatCompletionMessage{
-            {Role: "system", Content: config.OpenAI.SystemPrompt},
-            {Role: "user", Content: content},
-        },
+    req := openai.ChatCompletionNewParams{
+        Messages: openai.F([]openai.ChatCompletionMessageParamUnion{
+            openai.SystemMessage(config.OpenAI.SystemPrompt),
+            openai.UserMessage(content),
+        }),
+        Model: openai.F(config.OpenAI.Model),
     }
 
-    resp, err := openaiClient.CreateChatCompletion(ctx, req)
+    resp, err := openaiClient.Chat.Completions.New(ctx, req)
     if err != nil {
         return "", err
     }
