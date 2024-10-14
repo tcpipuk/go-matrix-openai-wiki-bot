@@ -58,7 +58,9 @@ func main() {
     }
 
     // Initialize OpenAI client
-    openaiClient = openai.NewClient(config.OpenAI.APIKey)
+    openaiClient = openai.NewClient(openai.ClientOptions{
+        APIKey: config.OpenAI.APIKey,
+    })
 
     // Initialize Matrix client
     matrixClient, err = mautrix.NewClient(config.Matrix.Homeserver, id.UserID(config.Matrix.UserID), config.Matrix.AccessToken)
@@ -68,7 +70,7 @@ func main() {
 
     // Sync the Matrix client
     syncer := matrixClient.Syncer.(*mautrix.DefaultSyncer)
-    syncer.OnEventType(event.EventMessage, handleMessageEvent)
+    syncer.OnEventType(event.EventMessage, event.HandlerFunc(handleMessageEvent))
 
     // Start syncing
     err = matrixClient.Sync()
@@ -171,21 +173,20 @@ func searchWikipedia(searchTerm string) (string, error) {
 func summarizeContent(content string) (string, error) {
     ctx := context.Background()
 
-    req := openai.ChatCompletionRequest{
+    req := openai.CompletionRequest{
         Model: config.OpenAI.Model,
-        Messages: []openai.ChatCompletionMessage{
-            {Role: "system", Content: config.OpenAI.SystemPrompt},
-            {Role: "user", Content: content},
+        Prompt: []string{
+            config.OpenAI.SystemPrompt + "\n\n" + content,
         },
     }
 
-    resp, err := openaiClient.Chat.CreateCompletion(ctx, req)
+    resp, err := openaiClient.CreateCompletion(ctx, req)
     if err != nil {
         return "", err
     }
 
     if len(resp.Choices) > 0 {
-        return resp.Choices[0].Message.Content, nil
+        return resp.Choices[0].Text, nil
     }
 
     return "", fmt.Errorf("no response from OpenAI")
