@@ -111,7 +111,7 @@ Ensure you have Go installed.
 Alternatively, you can pull the pre-built Docker image from GHCR:
 
 ```bash
-docker pull ghcr.io/your_username/go-matrix-openai-wiki-bot:latest
+docker pull ghcr.io/tcpipuk/go-matrix-openai-wiki-bot:latest
 ```
 
 Replace `your_username` with your GitHub username.
