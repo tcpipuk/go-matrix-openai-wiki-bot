@@ -23,7 +23,7 @@ WORKDIR /app
 
 # Copy the executable and config.yaml from the builder stage
 COPY --from=0 /app/go-matrix-openai-wiki-bot .
-COPY --from=0 /app/config.yaml .
+COPY --from=0 /app/config.example.yaml ./config.yaml
 
 # Create the output directory
 RUN mkdir -p output
