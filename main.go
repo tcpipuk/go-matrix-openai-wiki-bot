@@ -68,7 +68,7 @@ func main() {
 
     // Sync the Matrix client
     syncer := matrixClient.Syncer.(*mautrix.DefaultSyncer)
-    syncer.OnEventType(event.EventMessage, mautrix.EventHandlerFunc(handleMessageEvent))
+    syncer.OnEventType(event.EventMessage, handleMessageEvent)
 
     // Start syncing
     err = matrixClient.Sync()
@@ -97,8 +97,8 @@ func handleMessageEvent(ev *event.Event) {
         return
     }
 
-    msgEvent, ok := ev.Content.AsMessage()
-    if !ok {
+    msgEvent := ev.Content.AsMessage()
+    if msgEvent == nil {
         return
     }
 
@@ -174,12 +174,12 @@ func summarizeContent(content string) (string, error) {
     req := openai.ChatCompletionRequest{
         Model: config.OpenAI.Model,
         Messages: []openai.ChatCompletionMessage{
-            {Role: openai.ChatMessageRoleSystem, Content: config.OpenAI.SystemPrompt},
-            {Role: openai.ChatMessageRoleUser, Content: content},
+            {Role: "system", Content: config.OpenAI.SystemPrompt},
+            {Role: "user", Content: content},
         },
     }
 
-    resp, err := openaiClient.CreateChatCompletion(ctx, req)
+    resp, err := openaiClient.Chat.CreateCompletion(ctx, req)
     if err != nil {
         return "", err
     }
@@ -192,7 +192,7 @@ func summarizeContent(content string) (string, error) {
 }
 
 func sendMessage(roomID id.RoomID, message string) {
-    _, err := matrixClient.SendText(roomID, message)
+    _, err := matrixClient.SendText(context.Background(), roomID, message)
     if err != nil {
         log.Printf("Failed to send message to %s: %v", roomID, err)
     }
