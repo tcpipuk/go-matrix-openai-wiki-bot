@@ -6,7 +6,7 @@ OpenAI's GPT model, caches the summaries, and replies in Matrix rooms.
 ## Features
 
 - **Wikipedia Search**: Searches for articles on Wikipedia based on user input.
-- **Article Summarization**: Uses OpenAI's GPT model to summarize articles.
+- **Article Summarisation**: Uses OpenAI's GPT model to summarise articles.
 - **Caching Mechanism**: Caches summaries to avoid redundant API calls.
 - **Configurable**: All settings are configurable via a YAML file.
 - **Concurrent Requests**: Handles multiple requests concurrently using Goroutines.
@@ -105,7 +105,7 @@ Ensure you have Go installed.
   !wiki Computer
   ```
 
-- The bot should reply with a summarized version of the Wikipedia article.
+- The bot should reply with a summarised version of the Wikipedia article.
 
 ## Docker Image from GitHub Container Registry
 
@@ -119,6 +119,6 @@ docker pull ghcr.io/tcpipuk/go-matrix-openai-wiki-bot:latest
 
 Contributions are welcome! Please open an issue or submit a pull request.
 
-## License
+## Licence
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT Licence. See the [LICENSE](LICENSE) file for details.
