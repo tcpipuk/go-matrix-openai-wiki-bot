@@ -17,6 +17,7 @@ import (
     "maunium.net/go/mautrix/id"
 )
 
+// Config holds the configuration settings for the application.
 type Config struct {
     Matrix struct {
         Homeserver  string `yaml:"homeserver"`
@@ -38,6 +39,7 @@ type Config struct {
 }
 
 var (
+    // Global variables for configuration and clients
     config       Config
     openaiClient *openai.Client
     matrixClient *mautrix.Client
@@ -46,7 +48,7 @@ var (
 )
 
 func main() {
-    // Load configuration
+    // Load configuration from file
     err := loadConfig("config.yaml")
     if err != nil {
         log.Fatalf("Failed to load configuration: %v", err)
@@ -58,31 +60,32 @@ func main() {
         os.MkdirAll(outputDir, os.ModePerm)
     }
 
-    // Initialize OpenAI client
+    // Initialize OpenAI client with API key
     openaiClient = openai.NewClient(
         option.WithAPIKey(config.OpenAI.APIKey),
     )
 
-    // Initialize Matrix client
+    // Initialize Matrix client for communication
     matrixClient, err = mautrix.NewClient(config.Matrix.Homeserver, id.UserID(config.Matrix.UserID), config.Matrix.AccessToken)
     if err != nil {
         log.Fatalf("Failed to create Matrix client: %v", err)
     }
 
-    // Sync the Matrix client
+    // Set up event handler for message events
     syncer := matrixClient.Syncer.(*mautrix.DefaultSyncer)
     syncer.OnEventType(event.EventMessage, handleMessageEvent)
 
-    // Start syncing
+    // Start the Matrix client sync process
     err = matrixClient.Sync()
     if err != nil {
         log.Fatalf("Matrix sync failed: %v", err)
     }
 
-    // Wait indefinitely
+    // Keep the application running indefinitely
     select {}
 }
 
+// loadConfig reads the configuration from a YAML file.
 func loadConfig(filename string) error {
     data, err := os.ReadFile(filename)
     if err != nil {
@@ -95,7 +98,9 @@ func loadConfig(filename string) error {
     return nil
 }
 
+// handleMessageEvent processes incoming message events.
 func handleMessageEvent(ctx context.Context, ev *event.Event) {
+    // Ignore messages sent by the bot itself
     if ev.Sender == id.UserID(config.Matrix.UserID) {
         return
     }
@@ -105,6 +110,7 @@ func handleMessageEvent(ctx context.Context, ev *event.Event) {
         return
     }
 
+    // Check if the message starts with the bot command
     if strings.HasPrefix(msgEvent.Body, config.Bot.Command+" ") {
         searchTerm := strings.TrimSpace(strings.TrimPrefix(msgEvent.Body, config.Bot.Command+" "))
         wg.Add(1)
@@ -115,6 +121,7 @@ func handleMessageEvent(ctx context.Context, ev *event.Event) {
     }
 }
 
+// handleWikiCommand searches Wikipedia and sends a summary to the chat.
 func handleWikiCommand(ctx context.Context, roomID id.RoomID, searchTerm string) {
     articleTitle, err := searchWikipedia(searchTerm)
     if err != nil {
@@ -160,6 +167,7 @@ func handleWikiCommand(ctx context.Context, roomID id.RoomID, searchTerm string)
     sendMessage(ctx, roomID, summary)
 }
 
+// searchWikipedia searches for a Wikipedia article by term.
 func searchWikipedia(searchTerm string) (string, error) {
     searchResults, _, err := gowiki.Search(searchTerm, 1, false)
     if err != nil {
@@ -171,6 +179,7 @@ func searchWikipedia(searchTerm string) (string, error) {
     return searchResults[0], nil
 }
 
+// summarizeContent uses OpenAI to summarise the Wikipedia content.
 func summarizeContent(ctx context.Context, content string) (string, error) {
     req := openai.ChatCompletionNewParams{
         Messages: openai.F([]openai.ChatCompletionMessageParamUnion{
@@ -192,6 +201,7 @@ func summarizeContent(ctx context.Context, content string) (string, error) {
     return "", fmt.Errorf("no response from OpenAI")
 }
 
+// sendMessage sends a text message to a Matrix room.
 func sendMessage(ctx context.Context, roomID id.RoomID, message string) {
     _, err := matrixClient.SendText(ctx, roomID, message)
     if err != nil {
@@ -199,6 +209,7 @@ func sendMessage(ctx context.Context, roomID id.RoomID, message string) {
     }
 }
 
+// sanitizeFileName replaces invalid filename characters with underscores.
 func sanitizeFileName(name string) string {
     invalidChars := []string{"/", "\\", ":", "*", "?", "\"", "<", ">", "|"}
     for _, char := range invalidChars {
