@@ -17,6 +17,12 @@ import (
     "maunium.net/go/mautrix/id"
 )
 
+const (
+    configFileName = "config.yaml"
+    summaryFileExt  = ".txt"
+    filePerm        = 0644
+)
+
 // Config holds the configuration settings for the application.
 type Config struct {
     Matrix struct {
@@ -49,15 +55,15 @@ var (
 
 func main() {
     // Load configuration from file
-    err := loadConfig("config.yaml")
+    err := loadConfig(configFileName)
     if err != nil {
         log.Fatalf("Failed to load configuration: %v", err)
     }
 
     // Ensure output directory exists
     outputDir = config.Bot.OutputDir
-    if _, err := os.Stat(outputDir); os.IsNotExist(err) {
-        os.MkdirAll(outputDir, os.ModePerm)
+    if err := ensureDirExists(outputDir); err != nil {
+        log.Fatalf("Failed to create output directory: %v", err)
     }
 
     // Initialize OpenAI client with API key
@@ -76,13 +82,12 @@ func main() {
     syncer.OnEventType(event.EventMessage, handleMessageEvent)
 
     // Start the Matrix client sync process
-    err = matrixClient.Sync()
-    if err != nil {
+    if err = matrixClient.Sync(); err != nil {
         log.Fatalf("Matrix sync failed: %v", err)
     }
 
-    // Keep the application running indefinitely
-    select {}
+    // Wait for all goroutines to finish
+    wg.Wait()
 }
 
 // loadConfig reads the configuration from a YAML file.
@@ -94,6 +99,14 @@ func loadConfig(filename string) error {
     err = yaml.Unmarshal(data, &config)
     if err != nil {
         return err
+    }
+    return nil
+}
+
+// ensureDirExists creates a directory if it does not exist.
+func ensureDirExists(dir string) error {
+    if _, err := os.Stat(dir); os.IsNotExist(err) {
+        return os.MkdirAll(dir, os.ModePerm)
     }
     return nil
 }
@@ -129,14 +142,9 @@ func handleWikiCommand(ctx context.Context, roomID id.RoomID, searchTerm string)
         return
     }
 
-    summaryFile := fmt.Sprintf("%s/%s.txt", outputDir, sanitizeFileName(articleTitle))
-    if _, err := os.Stat(summaryFile); err == nil {
-        summary, err := os.ReadFile(summaryFile)
-        if err != nil {
-            sendMessage(ctx, roomID, fmt.Sprintf("Error reading summary: %v", err))
-            return
-        }
-        sendMessage(ctx, roomID, string(summary))
+    summaryFile := fmt.Sprintf("%s/%s%s", outputDir, sanitizeFileName(articleTitle), summaryFileExt)
+    if summary, err := readSummaryFromFile(summaryFile); err == nil {
+        sendMessage(ctx, roomID, summary)
         return
     }
 
@@ -154,17 +162,33 @@ func handleWikiCommand(ctx context.Context, roomID id.RoomID, searchTerm string)
 
     summary, err := summarizeContent(ctx, content)
     if err != nil {
-        sendMessage(ctx, roomID, fmt.Sprintf("Error summarizing article: %v", err))
+        sendMessage(ctx, roomID, fmt.Sprintf("Error summarising article: %v", err))
         return
     }
 
-    err = os.WriteFile(summaryFile, []byte(summary), 0644)
-    if err != nil {
+    if err = writeSummaryToFile(summaryFile, summary); err != nil {
         sendMessage(ctx, roomID, fmt.Sprintf("Error saving summary: %v", err))
         return
     }
 
     sendMessage(ctx, roomID, summary)
+}
+
+// readSummaryFromFile reads a summary from a file if it exists.
+func readSummaryFromFile(filename string) (string, error) {
+    if _, err := os.Stat(filename); err == nil {
+        summary, err := os.ReadFile(filename)
+        if err != nil {
+            return "", fmt.Errorf("error reading summary: %v", err)
+        }
+        return string(summary), nil
+    }
+    return "", fmt.Errorf("summary file does not exist")
+}
+
+// writeSummaryToFile writes a summary to a file.
+func writeSummaryToFile(filename, summary string) error {
+    return os.WriteFile(filename, []byte(summary), filePerm)
 }
 
 // searchWikipedia searches for a Wikipedia article by term.
