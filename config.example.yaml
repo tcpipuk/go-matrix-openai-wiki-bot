@@ -1,0 +1,16 @@
+matrix:
+  homeserver: "https://matrix.org"
+  user_id: "@your_bot:matrix.org"
+  access_token: "YOUR_MATRIX_ACCESS_TOKEN"
+
+openai:
+  api_key: "YOUR_OPENAI_API_KEY"
+  model: "gpt-4o-mini"
+  system_prompt: "Summarise the provided Wikipedia article in a brief, concise, and clear manner."
+
+wikipedia:
+  prefix: "https://en.wikipedia.org/wiki/"
+
+bot:
+  output_dir: "./output/"
+  command: "!wiki"
