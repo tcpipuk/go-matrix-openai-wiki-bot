@@ -1,18 +1,19 @@
 # go-matrix-openai-wiki-bot
 
-A Matrix bot that searches Wikipedia for articles based on user commands, summarizes them using OpenAI's GPT model, caches the summaries, and replies in Matrix rooms.
+A Matrix bot that searches Wikipedia for articles based on user commands, summarises them using
+OpenAI's GPT model, caches the summaries, and replies in Matrix rooms.
 
 ## Features
 
 - **Wikipedia Search**: Searches for articles on Wikipedia based on user input.
-- **Article Summarization**: Uses OpenAI's GPT model to summarize articles.
+- **Article Summarisation**: Uses OpenAI's GPT model to summarise articles.
 - **Caching Mechanism**: Caches summaries to avoid redundant API calls.
 - **Configurable**: All settings are configurable via a YAML file.
 - **Concurrent Requests**: Handles multiple requests concurrently using Goroutines.
 
 ## Prerequisites
 
-- Go (version 1.18 or higher)
+- Go (version 1.22 or higher)
 - Docker (if you prefer running the bot in a container)
 - Git (for cloning the repository)
 - An OpenAI API key
@@ -32,7 +33,7 @@ cd go-matrix-openai-wiki-bot
 - Copy the sample configuration file:
 
   ```bash
-  cp config.yaml.example config.yaml
+  cp config.example.yaml config.yaml
   ```
 
 - Edit `config.yaml` and update the following fields:
@@ -44,7 +45,7 @@ cd go-matrix-openai-wiki-bot
 
   - **OpenAI Configuration**:
     - `api_key`: Your OpenAI API key.
-    - `model`: The OpenAI model you wish to use (e.g., `gpt-3.5-turbo`).
+    - `model`: The OpenAI model you wish to use (e.g., `gpt-4o-mini`).
     - `system_prompt`: The prompt provided to the model.
 
   - **Bot Configuration**:
@@ -100,11 +101,11 @@ Ensure you have Go installed.
 - Invite your bot to a Matrix room.
 - Send a message using the configured command, e.g.:
 
-  ```
+  ```bash
   !wiki Computer
   ```
 
-- The bot should reply with a summarized version of the Wikipedia article.
+- The bot should reply with a summarised version of the Wikipedia article.
 
 ## Docker Image from GitHub Container Registry
 
@@ -114,12 +115,10 @@ Alternatively, you can pull the pre-built Docker image from GHCR:
 docker pull ghcr.io/tcpipuk/go-matrix-openai-wiki-bot:latest
 ```
 
-Replace `your_username` with your GitHub username.
-
 ## Contributing
 
 Contributions are welcome! Please open an issue or submit a pull request.
 
-## License
+## Licence
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT Licence. See the [LICENSE](LICENSE) file for details.
