@@ -77,8 +77,8 @@ func main() {
         option.WithAPIKey(config.OpenAI.APIKey),
     )
 
-    // Initialize Matrix client for communication
-		var err error
+    // Initialise Matrix client for communication
+    var err error
     matrixClient, err = mautrix.NewClient(config.Matrix.Homeserver, id.UserID(config.Matrix.UserID), config.Matrix.AccessToken)
     if err != nil {
         log.Fatalf("Failed to create Matrix client: %v", err)
