@@ -7,6 +7,7 @@ import (
     "os"
     "strings"
     "sync"
+    "time"
 
     gowiki "github.com/trietmn/go-wiki"
     openai "github.com/openai/openai-go"
@@ -18,9 +19,16 @@ import (
 )
 
 const (
-    configFileName = "config.yaml"
+    configFileName  = "config.yaml"
     summaryFileExt  = ".txt"
     filePerm        = 0644
+    commandTimeout  = 30 * time.Second
+    noResultsError  = "No results found for '%s'"
+    errorReading    = "Error reading summary: %v"
+    errorSaving     = "Error saving summary: %v"
+    errorFetching   = "Error fetching article: %v"
+    errorGetting    = "Error getting content: %v"
+    errorSummarising = "Error summarising article: %v"
 )
 
 // Config holds the configuration settings for the application.
@@ -54,9 +62,7 @@ var (
 )
 
 func main() {
-    // Load configuration from file
-    err := loadConfig(configFileName)
-    if err != nil {
+    if err := loadConfig(configFileName); err != nil {
         log.Fatalf("Failed to load configuration: %v", err)
     }
 
@@ -66,12 +72,13 @@ func main() {
         log.Fatalf("Failed to create output directory: %v", err)
     }
 
-    // Initialize OpenAI client with API key
+    // Initialise OpenAI client with API key
     openaiClient = openai.NewClient(
         option.WithAPIKey(config.OpenAI.APIKey),
     )
 
     // Initialize Matrix client for communication
+		var err error
     matrixClient, err = mautrix.NewClient(config.Matrix.Homeserver, id.UserID(config.Matrix.UserID), config.Matrix.AccessToken)
     if err != nil {
         log.Fatalf("Failed to create Matrix client: %v", err)
@@ -94,11 +101,10 @@ func main() {
 func loadConfig(filename string) error {
     data, err := os.ReadFile(filename)
     if err != nil {
-        return err
+        return fmt.Errorf("failed to read config file: %w", err)
     }
-    err = yaml.Unmarshal(data, &config)
-    if err != nil {
-        return err
+    if err = yaml.Unmarshal(data, &config); err != nil {
+        return fmt.Errorf("failed to unmarshal config: %w", err)
     }
     return nil
 }
@@ -129,6 +135,8 @@ func handleMessageEvent(ctx context.Context, ev *event.Event) {
         wg.Add(1)
         go func() {
             defer wg.Done()
+            ctx, cancel := context.WithTimeout(ctx, commandTimeout)
+            defer cancel()
             handleWikiCommand(ctx, ev.RoomID, searchTerm)
         }()
     }
@@ -150,24 +158,24 @@ func handleWikiCommand(ctx context.Context, roomID id.RoomID, searchTerm string)
 
     page, err := gowiki.GetPage(articleTitle, -1, false, true)
     if err != nil {
-        sendMessage(ctx, roomID, fmt.Sprintf("Error fetching article: %v", err))
+        sendMessage(ctx, roomID, fmt.Sprintf(errorFetching, err))
         return
     }
 
     content, err := page.GetContent()
     if err != nil {
-        sendMessage(ctx, roomID, fmt.Sprintf("Error getting content: %v", err))
+        sendMessage(ctx, roomID, fmt.Sprintf(errorGetting, err))
         return
     }
 
     summary, err := summarizeContent(ctx, content)
     if err != nil {
-        sendMessage(ctx, roomID, fmt.Sprintf("Error summarising article: %v", err))
+        sendMessage(ctx, roomID, fmt.Sprintf(errorSummarising, err))
         return
     }
 
     if err = writeSummaryToFile(summaryFile, summary); err != nil {
-        sendMessage(ctx, roomID, fmt.Sprintf("Error saving summary: %v", err))
+        sendMessage(ctx, roomID, fmt.Sprintf(errorSaving, err))
         return
     }
 
@@ -179,7 +187,7 @@ func readSummaryFromFile(filename string) (string, error) {
     if _, err := os.Stat(filename); err == nil {
         summary, err := os.ReadFile(filename)
         if err != nil {
-            return "", fmt.Errorf("error reading summary: %v", err)
+            return "", fmt.Errorf(errorReading, err)
         }
         return string(summary), nil
     }
@@ -198,7 +206,7 @@ func searchWikipedia(searchTerm string) (string, error) {
         return "", err
     }
     if len(searchResults) == 0 {
-        return "", fmt.Errorf("No results found for '%s'", searchTerm)
+        return "", fmt.Errorf(noResultsError, searchTerm)
     }
     return searchResults[0], nil
 }
