@@ -8,7 +8,7 @@ require (
 	github.com/openai/openai-go v0.1.0-alpha.27
 	github.com/trietmn/go-wiki v1.0.3
 	gopkg.in/yaml.v2 v2.4.0
-	maunium.net/go/mautrix v0.21.0
+	maunium.net/go/mautrix v0.21.1
 )
 
 require (
@@ -21,7 +21,7 @@ require (
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tidwall/sjson v1.2.5 // indirect
-	go.mau.fi/util v0.8.0 // indirect
+	go.mau.fi/util v0.8.1 // indirect
 	golang.org/x/crypto v0.28.0 // indirect
 	golang.org/x/exp v0.0.0-20241009180824-f66d83c29e7c // indirect
 	golang.org/x/net v0.30.0 // indirect
