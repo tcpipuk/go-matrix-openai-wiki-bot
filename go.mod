@@ -1,10 +1,10 @@
 module github.com/tcpipuk/go-matrix-openai-wiki-bot
 
 go 1.22.0
-toolchain go1.23.6
+toolchain go1.24.1
 
 require (
-	github.com/openai/openai-go v0.1.0-alpha.62
+	github.com/openai/openai-go v0.1.0-alpha.63
 	github.com/trietmn/go-wiki v1.0.3
 	gopkg.in/yaml.v2 v2.4.0
 	maunium.net/go/mautrix v0.23.1
