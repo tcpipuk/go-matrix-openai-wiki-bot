@@ -6,7 +6,7 @@ toolchain go1.24.1
 
 require (
 	github.com/openai/openai-go v1.3.0
-	github.com/trietmn/go-wiki v1.0.3
+	github.com/trietmn/go-wiki v1.0.4
 	gopkg.in/yaml.v2 v2.4.0
 	maunium.net/go/mautrix v0.24.0
 )
