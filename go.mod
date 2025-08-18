@@ -1,6 +1,6 @@
 module github.com/tcpipuk/go-matrix-openai-wiki-bot
 
-go 1.23.0
+go 1.24.0
 
 toolchain go1.24.1
 
@@ -8,7 +8,7 @@ require (
 	github.com/openai/openai-go v1.12.0
 	github.com/trietmn/go-wiki v1.0.3
 	gopkg.in/yaml.v2 v2.4.0
-	maunium.net/go/mautrix v0.24.2
+	maunium.net/go/mautrix v0.25.0
 )
 
 require (
@@ -21,10 +21,10 @@ require (
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tidwall/sjson v1.2.5 // indirect
-	go.mau.fi/util v0.8.8 // indirect
-	golang.org/x/crypto v0.40.0 // indirect
-	golang.org/x/exp v0.0.0-20250711185948-6ae5c78190dc // indirect
-	golang.org/x/net v0.42.0 // indirect
-	golang.org/x/sys v0.34.0 // indirect
-	golang.org/x/text v0.27.0 // indirect
+	go.mau.fi/util v0.9.0 // indirect
+	golang.org/x/crypto v0.41.0 // indirect
+	golang.org/x/exp v0.0.0-20250813145105-42675adae3e6 // indirect
+	golang.org/x/net v0.43.0 // indirect
+	golang.org/x/sys v0.35.0 // indirect
+	golang.org/x/text v0.28.0 // indirect
 )
